@@ -1,0 +1,177 @@
+
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NutriCoach M0</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x" defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-6xl mx-auto p-4 md:p-8">
+    <header class="mb-6">
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl md:text-3xl font-bold">NutriCoach <span class="text-slate-500">M0</span></h1>
+        <a href="/settings" class="text-sm underline">Impostazioni</a>
+      </div>
+      <p class="text-sm text-slate-600">Prototipo web: dispensa → consumo → riepilogo giornaliero, con decremento scorte.</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Col 1: Aggiungi alla dispensa -->
+      <section class="md:col-span-1 bg-white rounded-2xl shadow p-4">
+        <h2 class="font-semibold mb-2">Aggiungi alla dispensa</h2>
+        <form method="post" action="/api/pantry" class="space-y-2">
+          <label class="block">
+            <span class="text-sm">Alimento</span>
+            <select name="food_id" class="w-full border rounded px-2 py-1">
+              {% for f in foods %}
+                <option value="{{f.id}}">{{f.name}}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="block">
+              <span class="text-sm">Quantità (g)</span>
+              <input name="qty_g" type="number" step="1" class="w-full border rounded px-2 py-1" required />
+            </label>
+            <label class="block">
+              <span class="text-sm">Confezione (g)</span>
+              <input name="package_g" type="number" step="1" class="w-full border rounded px-2 py-1" />
+            </label>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="block">
+              <span class="text-sm">Luogo</span>
+              <input name="location" type="text" class="w-full border rounded px-2 py-1" placeholder="dispensa, frigo…" />
+            </label>
+            <label class="block">
+              <span class="text-sm">Scadenza</span>
+              <input name="best_before" type="date" class="w-full border rounded px-2 py-1" />
+            </label>
+          </div>
+          <button class="mt-2 w-full bg-slate-900 text-white rounded-xl py-2">Aggiungi</button>
+        </form>
+
+        <hr class="my-4" />
+
+        <h3 class="font-semibold mb-2">Nuovo alimento</h3>
+        <form method="post" action="/api/foods" class="space-y-2">
+          <input name="name" class="w-full border rounded px-2 py-1" placeholder="Nome alimento" required />
+          <div class="grid grid-cols-4 gap-2 text-xs">
+            <input name="kcal_100g" type="number" step="0.1" class="border rounded px-2 py-1" placeholder="kcal/100g" required />
+            <input name="prot_100g" type="number" step="0.1" class="border rounded px-2 py-1" placeholder="P/100g" required />
+            <input name="carb_100g" type="number" step="0.1" class="border rounded px-2 py-1" placeholder="C/100g" required />
+            <input name="fat_100g" type="number" step="0.1" class="border rounded px-2 py-1" placeholder="F/100g" required />
+          </div>
+          <div class="grid grid-cols-4 gap-2 text-xs">
+            <input name="fiber_100g" type="number" step="0.1" class="border rounded px-2 py-1" placeholder="Fibra" />
+            <input name="sugar_100g" type="number" step="0.1" class="border rounded px-2 py-1" placeholder="Zuccheri" />
+            <input name="satfat_100g" type="number" step="0.1" class="border rounded px-2 py-1" placeholder="Sat. fat" />
+            <input name="sodium_mg_100g" type="number" step="1" class="border rounded px-2 py-1" placeholder="Na mg" />
+          </div>
+          <button class="mt-1 w-full bg-slate-700 text-white rounded-xl py-2">Crea alimento</button>
+        </form>
+      </section>
+
+      <!-- Col 2: Consumo rapido e riepilogo -->
+      <section class="md:col-span-1 bg-white rounded-2xl shadow p-4">
+        <h2 class="font-semibold mb-2">Consuma</h2>
+        <form method="post" action="/api/consume" class="space-y-2">
+          <label class="block">
+            <span class="text-sm">Alimento</span>
+            <select name="food_id" class="w-full border rounded px-2 py-1">
+              {% for f in foods %}
+                <option value="{{f.id}}">{{f.name}}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="block">
+              <span class="text-sm">Grammi</span>
+              <input name="grams" type="number" step="1" class="w-full border rounded px-2 py-1" required />
+            </label>
+            <label class="block">
+              <span class="text-sm">Pasto</span>
+              <select name="meal" class="w-full border rounded px-2 py-1">
+                <option>breakfast</option>
+                <option>lunch</option>
+                <option>dinner</option>
+                <option selected>snack</option>
+              </select>
+            </label>
+          </div>
+          <input name="note" class="w-full border rounded px-2 py-1" placeholder="Nota (opzionale)" />
+          <button class="mt-1 w-full bg-emerald-600 text-white rounded-xl py-2">Registra consumo</button>
+        </form>
+
+        <hr class="my-4" />
+        <div x-data="summary()" x-init="load()" class="space-y-2">
+          <div class="flex items-center justify-between">
+            <h2 class="font-semibold">Riepilogo di oggi</h2>
+            <input type="date" x-model="day" @change="load()" class="border rounded px-2 py-1 text-sm" />
+          </div>
+          <template x-if="ready">
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div class="p-3 rounded-xl bg-slate-100">
+                <div class="font-semibold">Calorie</div>
+                <div x-text="totals.kcal + ' / ' + targets.kcal + ' kcal (' + progress.kcal_pct + '%)'"></div>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-100">
+                <div class="font-semibold">Proteine</div>
+                <div x-text="totals.prot_g + ' / ' + targets.prot_g + ' g (' + progress.prot_pct + '%)'"></div>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-100">
+                <div class="font-semibold">Carboidrati</div>
+                <div x-text="totals.carb_g + ' / ' + targets.carb_g + ' g (' + progress.carb_pct + '%)'"></div>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-100">
+                <div class="font-semibold">Grassi</div>
+                <div x-text="totals.fat_g + ' / ' + targets.fat_g + ' g (' + progress.fat_pct + '%)'"></div>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-100 col-span-2">
+                <div class="font-semibold">Fibre</div>
+                <div x-text="totals.fiber_g + ' / ' + targets.fiber_g + ' g (' + progress.fiber_pct + '%)'"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <script>
+          function summary() {
+            return {
+              day: '{{today}}', ready: false, totals: {}, targets: {}, progress: {},
+              async load(){
+                const r = await fetch(`/api/summary?date_str=${this.day}`)
+                const j = await r.json();
+                this.totals = j.totals; this.targets = j.targets; this.progress = j.progress; this.ready = true;
+              }
+            }
+          }
+        </script>
+      </section>
+
+      <!-- Col 3: Dispensa -->
+      <section class="md:col-span-1 bg-white rounded-2xl shadow p-4">
+        <h2 class="font-semibold mb-2">Dispensa</h2>
+        <table class="w-full text-sm">
+          <thead class="text-left text-slate-600">
+            <tr><th class="py-1">Alimento</th><th>Quantità</th><th>Confezione</th><th>Luogo</th></tr>
+          </thead>
+          <tbody>
+            {% for p in pantry %}
+              <tr class="border-t">
+                <td class="py-1">{{p.name}}</td>
+                <td>{{'%.0f'|format(p.qty_g)}} g</td>
+                <td>{{('%.0f'|format(p.package_g)) if p.package_g else '—'}}</td>
+                <td>{{p.location or '—'}}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

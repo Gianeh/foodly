@@ -1,0 +1,49 @@
+
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Impostazioni • NutriCoach</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-xl mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-4">Impostazioni utente</h1>
+    <form method="post" class="grid grid-cols-2 gap-3 bg-white rounded-2xl shadow p-4">
+      <label class="block text-sm">Peso (kg)
+        <input name="weight_kg" type="number" step="0.1" value="{{s.weight_kg}}" class="w-full border rounded px-2 py-1"/>
+      </label>
+      <label class="block text-sm">Altezza (cm)
+        <input name="height_cm" type="number" step="0.1" value="{{s.height_cm}}" class="w-full border rounded px-2 py-1"/>
+      </label>
+      <label class="block text-sm">Età
+        <input name="age" type="number" value="{{s.age}}" class="w-full border rounded px-2 py-1"/>
+      </label>
+      <label class="block text-sm">Sesso
+        <select name="sex" class="w-full border rounded px-2 py-1">
+          <option value="M" {% if s.sex=='M' %}selected{% endif %}>M</option>
+          <option value="F" {% if s.sex=='F' %}selected{% endif %}>F</option>
+        </select>
+      </label>
+      <label class="block text-sm">Fattore attività (1.2-1.9)
+        <input name="activity_level" type="number" step="0.1" value="{{s.activity_level}}" class="w-full border rounded px-2 py-1"/>
+      </label>
+      <label class="block text-sm">Target kcal (vuoto = TDEE)
+        <input name="kcal_target" type="number" step="1" value="{{s.kcal_target or ''}}" class="w-full border rounded px-2 py-1"/>
+      </label>
+      <label class="block text-sm">Proteine (g/kg)
+        <input name="protein_g_per_kg" type="number" step="0.1" value="{{s.protein_g_per_kg}}" class="w-full border rounded px-2 py-1"/>
+      </label>
+      <label class="block text-sm">Grassi (g/kg)
+        <input name="fat_g_per_kg" type="number" step="0.1" value="{{s.fat_g_per_kg}}" class="w-full border rounded px-2 py-1"/>
+      </label>
+
+      <div class="col-span-2 flex gap-2 mt-2">
+        <a href="/" class="px-4 py-2 rounded-xl border">Indietro</a>
+        <button class="px-4 py-2 rounded-xl bg-slate-900 text-white">Salva</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>
