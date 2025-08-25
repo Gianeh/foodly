@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import sqlite3
 import re
 from typing import Any, Dict, List
@@ -155,8 +156,17 @@ def agent_chat(req: ChatRequest = Body(...)):
     if req.use_rule_based:
         actions = naive_parse(conn, req.user_message)
     else:
-        # Hook LLM: costruisci messages + tools e ottieni tool calls (da implementare)
-        _ = SYSTEM_PROMPT, TOOLS_SCHEMA  # silenzia l/linter
+        api_key = os.getenv("FOODLY_API")
+        if not api_key:
+            r = conn.execute("SELECT llm_api_key FROM user_settings WHERE id=1").fetchone()
+            api_key = r["llm_api_key"] if r and r["llm_api_key"] else None
+        if not api_key:
+            conn.close()
+            return ChatResponse(actions=[], results={}, message="Imposta la variabile FOODLY_API nelle impostazioni e riprova.")
+        conn.execute("UPDATE user_settings SET llm_api_key=? WHERE id=1", (api_key,))
+        conn.commit()
+        conn.close()
+        _ = SYSTEM_PROMPT, TOOLS_SCHEMA, api_key  # silenzia l/linter
         raise NotImplementedError("LLM non collegato in questo prototipo. Imposta use_rule_based=true.")
 
     # 2) Esegui tools
