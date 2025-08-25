@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import re
+import json
 from typing import Any, Dict, List
 
 from fastapi import FastAPI, Body
@@ -33,7 +34,10 @@ SYSTEM_PROMPT = (
     "1) Non inventare nutrienti; 2) tutte le quantità in grammi/ml; 3) conferma operazioni ambigue; "
     "4) rispondi con numeri chiari e brevi; 5) se utile, proponi 1–3 opzioni dalla dispensa; "
     "6) MAI superare i limiti: niente decreti negativi, niente kcal/macro impossibili; "
-    "7) Output JSON con 'actions' (tool calls) e 'message' sintetico."
+    "7) Output JSON con 'actions' (tool calls) e 'message' sintetico; "
+    "8) Usa gli strumenti solo con parametri completi e validi; "
+    "9) Se l'operazione è ambigua o irreversibile, chiedi conferma esplicita prima di generare tool calls; "
+    "10) Mantieni la tenuta d'inventario: non proporre quantità superiori alla dispensa e aggiorna sempre lo stock con add_to_pantry/consume."
 )
 
 TOOLS_SCHEMA = [
@@ -73,8 +77,27 @@ TOOLS_SCHEMA = [
 
 ADD_PAT = re.compile(r"aggiung[ei]|metti(?: .+)? in dispensa", re.I)
 CONS_PAT = re.compile(r"(ho )?(mangiato|consumato|usa|consuma)", re.I)
-GRAMS_PAT = re.compile(r"(\d+)(?:\s)?g\b", re.I)
-QTY_PAT = re.compile(r"(\d+)\s*(?:x|scatolette?|confezioni?)", re.I)
+# numeri seguiti da g o ml
+GRAMS_PAT = re.compile(r"(\d+)(?:\s)?(g|ml)\b", re.I)
+# es. "2 x", "2 vasetti", "2 bottiglie"
+QTY_PAT = re.compile(
+    r"(\d+)\s*(?:x|scatolette?|confezioni?|vasetti|lattine|bottiglie)", re.I
+)
+# es. "2 vasetti da 125 g"
+MULTI_PAT = re.compile(
+    r"(\d+)\s*(?:x|scatolette?|confezioni?|vasetti|lattine|bottiglie).*?da\s*(\d+)\s*(g|ml)",
+    re.I,
+)
+
+FOOD_KEYS = [
+    "tonno",
+    "gallette",
+    "prosciutto",
+    "riso",
+    "pollo",
+    "yogurt",
+    "latte",
+]
 
 
 def naive_parse(conn: sqlite3.Connection, text: str) -> List[ToolCall]:
@@ -87,18 +110,22 @@ def naive_parse(conn: sqlite3.Connection, text: str) -> List[ToolCall]:
 
     if ADD_PAT.search(text):
         grams = 0.0
-        m = GRAMS_PAT.search(text)
-        if m:
-            grams = float(m.group(1))
-        # Prova quantità per unità (es. 2 scatolette da 56 g)
-        mq = QTY_PAT.search(text)
-        if mq and grams == 0.0:
+        mq = MULTI_PAT.search(text)
+        if mq:
             qty = float(mq.group(1))
-            # deduci 56 g se parla di tonno
-            grams = qty * (56.0 if "tonno" in text.lower() else 100.0)
+            grams = qty * float(mq.group(2))
+        else:
+            m = GRAMS_PAT.search(text)
+            if m:
+                grams = float(m.group(1))
+            mq = QTY_PAT.search(text)
+            if mq and grams == 0.0:
+                qty = float(mq.group(1))
+                # deduci 56 g se parla di tonno
+                grams = qty * (56.0 if "tonno" in text.lower() else 100.0)
         # identifica food
         food = None
-        for key in ["tonno", "gallette", "prosciutto", "riso", "pollo", "yogurt"]:
+        for key in FOOD_KEYS:
             if key in text.lower():
                 food = key; break
         if food is None:
@@ -117,7 +144,7 @@ def naive_parse(conn: sqlite3.Connection, text: str) -> List[ToolCall]:
         if m:
             grams = float(m.group(1))
         food = None
-        for key in ["tonno", "gallette", "prosciutto", "riso", "pollo", "yogurt"]:
+        for key in FOOD_KEYS:
             if key in text.lower():
                 food = key; break
         fid = find_id(food) if food else None
@@ -166,8 +193,27 @@ def agent_chat(req: ChatRequest = Body(...)):
         conn.execute("UPDATE user_settings SET llm_api_key=? WHERE id=1", (api_key,))
         conn.commit()
         conn.close()
-        _ = SYSTEM_PROMPT, TOOLS_SCHEMA, api_key  # silenzia l/linter
-        raise NotImplementedError("LLM non collegato in questo prototipo. Imposta use_rule_based=true.")
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        prompt = SYSTEM_PROMPT
+        if req.require_confirm:
+            prompt += " L'utente richiede conferma per operazioni critiche."
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": req.user_message},
+            ],
+            tools=TOOLS_SCHEMA,
+            tool_choice="auto",
+        )
+        msg = resp.choices[0].message
+        for tc in getattr(msg, "tool_calls", []) or []:
+            try:
+                args = json.loads(tc.function.arguments)
+            except Exception:
+                args = {}
+            actions.append(ToolCall(name=tc.function.name, arguments=args))
 
     # 2) Esegui tools
     results = execute_actions(conn, actions, dry=req.dry_run)

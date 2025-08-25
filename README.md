@@ -26,3 +26,4 @@ Il progetto utilizza un database SQLite denominato `foodly.db` nella directory r
 
 ## Stato del modello linguistico
 L'integrazione con LLM non è ancora implementata. L'agente funziona tramite parser rule‑based: impostare `use_rule_based=true` nelle richieste finché il supporto LLM non sarà disponibile.
+
