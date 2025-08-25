@@ -4,7 +4,7 @@ Foodly è un prototipo di coach nutrizionale composto da due servizi FastAPI e u
 
 ## Struttura a pacchetti
 - **`foodly/core`** – gestione del database SQLite, modelli Pydantic e calcoli nutrizionali.
-- **`foodly/app`** – interfaccia web per consultare dispensa e impostazioni.
+https://github.com/Gianeh/foodly/pull/7/conflict?name=README.md&base_oid=acad9c5d3e4d61e8c7c292b1fbac3575936ae2b9&head_oid=3b192c748521a245427c47c8d6f9146476aa7482- **`foodly/app`** – interfaccia web per consultare dispensa e impostazioni.
 - **`foodly/agent`** – agente conversazionale che interagisce con il database tramite strumenti.
 
 ## Requisiti
