@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
@@ -10,10 +11,17 @@ class AddToPantry(BaseModel):
     location: Optional[str] = None
     best_before: Optional[str] = Field(None, description="YYYY-MM-DD")
 
+class MealType(str, Enum):
+    breakfast = "breakfast"
+    lunch = "lunch"
+    dinner = "dinner"
+    snack = "snack"
+
+
 class Consume(BaseModel):
     food_id: int
     grams: float = Field(..., gt=0)
-    meal: Optional[str] = Field("snack", enum=["breakfast","lunch","dinner","snack"])  # type: ignore
+    meal: MealType = MealType.snack
     note: Optional[str] = None
 
 class FindFood(BaseModel):

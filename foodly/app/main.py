@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 
 from foodly.core.db import get_db, init_db
 from foodly.core.calculations import compute_targets
+from foodly.core.models import MealType
 
 APP_DIR = Path(__file__).parent
 TEMPLATES_DIR = APP_DIR / "templates"
@@ -143,7 +144,7 @@ def api_add_pantry(
 def api_consume(
     food_id: int = Form(...),
     grams: float = Form(...),
-    meal: Optional[str] = Form("snack"),
+    meal: MealType = Form(MealType.snack),
     note: Optional[str] = Form(None),
 ):
     grams = max(0.0, grams)
@@ -151,7 +152,7 @@ def api_consume(
     # Log consumption
     conn.execute(
         "INSERT INTO consumption_logs(ts, food_id, grams, meal, note) VALUES (?,?,?,?,?)",
-        (datetime.utcnow().isoformat(), food_id, grams, meal, note)
+        (datetime.utcnow().isoformat(), food_id, grams, meal.value, note)
     )
     # Decrement pantry FIFO by created_at
     remaining = grams

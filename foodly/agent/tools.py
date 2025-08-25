@@ -14,7 +14,7 @@ def tool_add_to_pantry(conn: sqlite3.Connection, p: AddToPantry):
 def tool_consume(conn: sqlite3.Connection, c: Consume):
     conn.execute(
         "INSERT INTO consumption_logs(ts, food_id, grams, meal, note) VALUES (?,?,?,?,?)",
-        (datetime.utcnow().isoformat(), c.food_id, c.grams, c.meal, c.note)
+        (datetime.utcnow().isoformat(), c.food_id, c.grams, c.meal.value, c.note)
     )
     # Decremento FIFO
     remaining = c.grams
