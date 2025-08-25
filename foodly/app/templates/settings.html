@@ -39,6 +39,10 @@
         <input name="fat_g_per_kg" type="number" step="0.1" value="{{s.fat_g_per_kg}}" class="w-full border rounded px-2 py-1"/>
       </label>
 
+      <label class="block text-sm col-span-2">Chiave API LLM
+        <input name="llm_api_key" type="text" value="{{s.llm_api_key or ''}}" class="w-full border rounded px-2 py-1"/>
+      </label>
+
       <div class="col-span-2 flex gap-2 mt-2">
         <a href="/" class="px-4 py-2 rounded-xl border">Indietro</a>
         <button class="px-4 py-2 rounded-xl bg-slate-900 text-white">Salva</button>

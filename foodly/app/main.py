@@ -70,16 +70,27 @@ def update_settings(
     kcal_target: Optional[float] = Form(None),
     protein_g_per_kg: float = Form(1.8),
     fat_g_per_kg: float = Form(0.8),
+    llm_api_key: Optional[str] = Form(None),
 ):
     conn = get_db()
     conn.execute(
         """
         UPDATE user_settings
         SET weight_kg=?, height_cm=?, age=?, sex=?, activity_level=?, kcal_target=?,
-            protein_g_per_kg=?, fat_g_per_kg=?
+            protein_g_per_kg=?, fat_g_per_kg=?, llm_api_key=?
         WHERE id=1
         """,
-        (weight_kg, height_cm, age, sex, activity_level, kcal_target, protein_g_per_kg, fat_g_per_kg)
+        (
+            weight_kg,
+            height_cm,
+            age,
+            sex,
+            activity_level,
+            kcal_target,
+            protein_g_per_kg,
+            fat_g_per_kg,
+            llm_api_key,
+        ),
     )
     conn.commit()
     conn.close()

@@ -64,10 +64,17 @@ def init_db():
             activity_level REAL DEFAULT 1.5,    -- 1.2..1.9
             kcal_target REAL,                   -- if NULL, use TDEE
             protein_g_per_kg REAL DEFAULT 1.8,
-            fat_g_per_kg REAL DEFAULT 0.8
+            fat_g_per_kg REAL DEFAULT 0.8,
+            llm_api_key TEXT
         );
         """
     )
+
+    # ensure new column exists for existing installations
+    cur.execute("PRAGMA table_info(user_settings)")
+    cols = [r[1] for r in cur.fetchall()]
+    if "llm_api_key" not in cols:
+        cur.execute("ALTER TABLE user_settings ADD COLUMN llm_api_key TEXT")
 
     # Seed settings
     cur.execute("INSERT OR IGNORE INTO user_settings(id) VALUES (1)")
