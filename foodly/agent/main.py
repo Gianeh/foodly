@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import re
+import json
 from typing import Any, Dict, List
 
 from fastapi import FastAPI, Body
@@ -33,7 +34,10 @@ SYSTEM_PROMPT = (
     "1) Non inventare nutrienti; 2) tutte le quantità in grammi/ml; 3) conferma operazioni ambigue; "
     "4) rispondi con numeri chiari e brevi; 5) se utile, proponi 1–3 opzioni dalla dispensa; "
     "6) MAI superare i limiti: niente decreti negativi, niente kcal/macro impossibili; "
-    "7) Output JSON con 'actions' (tool calls) e 'message' sintetico."
+    "7) Output JSON con 'actions' (tool calls) e 'message' sintetico; "
+    "8) Usa gli strumenti solo con parametri completi e validi; "
+    "9) Se l'operazione è ambigua o irreversibile, chiedi conferma esplicita prima di generare tool calls; "
+    "10) Mantieni la tenuta d'inventario: non proporre quantità superiori alla dispensa e aggiorna sempre lo stock con add_to_pantry/consume."
 )
 
 TOOLS_SCHEMA = [
@@ -189,8 +193,27 @@ def agent_chat(req: ChatRequest = Body(...)):
         conn.execute("UPDATE user_settings SET llm_api_key=? WHERE id=1", (api_key,))
         conn.commit()
         conn.close()
-        _ = SYSTEM_PROMPT, TOOLS_SCHEMA, api_key  # silenzia l/linter
-        raise NotImplementedError("LLM non collegato in questo prototipo. Imposta use_rule_based=true.")
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        prompt = SYSTEM_PROMPT
+        if req.require_confirm:
+            prompt += " L'utente richiede conferma per operazioni critiche."
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": req.user_message},
+            ],
+            tools=TOOLS_SCHEMA,
+            tool_choice="auto",
+        )
+        msg = resp.choices[0].message
+        for tc in getattr(msg, "tool_calls", []) or []:
+            try:
+                args = json.loads(tc.function.arguments)
+            except Exception:
+                args = {}
+            actions.append(ToolCall(name=tc.function.name, arguments=args))
 
     # 2) Esegui tools
     results = execute_actions(conn, actions, dry=req.dry_run)
