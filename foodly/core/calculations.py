@@ -1,5 +1,6 @@
 import sqlite3
-from typing import Dict
+from datetime import date
+from typing import Dict, Tuple, Optional
 
 def bmr_mifflin(kg: float, cm: float, years: int, sex: str) -> float:
     base = 10*kg + 6.25*cm - 5*years
@@ -24,3 +25,18 @@ def compute_targets(conn: sqlite3.Connection) -> Dict[str, float]:
         "fat_g": round(fat_g, 1),
         "fiber_g": round(fiber_g, 1),
     }
+
+
+def day_bounds(date_str: Optional[str] = None) -> Tuple[str, str]:
+    """Return ISO 8601 start and end timestamps for the given day.
+
+    If ``date_str`` is ``None`` it defaults to today's date. The function
+    returns a tuple ``(start, end)`` where ``start`` corresponds to midnight
+    and ``end`` to the last second of the day. These bounds are used by several
+    reporting utilities to select records within a specific day.
+    """
+    if not date_str:
+        date_str = date.today().isoformat()
+    start = f"{date_str}T00:00:00"
+    end = f"{date_str}T23:59:59"
+    return start, end
