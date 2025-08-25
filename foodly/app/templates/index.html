@@ -19,7 +19,7 @@
       <p class="text-sm text-slate-600">Prototipo web: dispensa → consumo → riepilogo giornaliero, con decremento scorte.</p>
     </header>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
       <!-- Col 1: Aggiungi alla dispensa -->
       <section class="md:col-span-1 bg-white rounded-2xl shadow p-4">
         <h2 class="font-semibold mb-2">Aggiungi alla dispensa</h2>
@@ -149,10 +149,51 @@
               }
             }
           }
+
+          function chat() {
+            return {
+              messages: [],
+              userInput: '',
+              async sendMessage() {
+                if (this.userInput.trim() === '') return;
+                this.messages.push({ role: 'user', content: this.userInput });
+                const formData = new FormData();
+                formData.append('user_message', this.userInput);
+                this.userInput = '';
+                this.$nextTick(() => { this.$refs.chatbox.scrollTop = this.$refs.chatbox.scrollHeight; });
+
+                const response = await fetch('/chat', {
+                  method: 'POST',
+                  body: formData
+                });
+                const result = await response.json();
+                this.messages.push({ role: 'assistant', content: result.message });
+                this.$nextTick(() => { this.$refs.chatbox.scrollTop = this.$refs.chatbox.scrollHeight; });
+              }
+            }
+          }
         </script>
       </section>
 
-      <!-- Col 3: Dispensa -->
+      <!-- Col 3: Chat -->
+      <section class="md:col-span-1 bg-white rounded-2xl shadow p-4" x-data="chat()">
+        <h2 class="font-semibold mb-2">Chat con NutriCoach</h2>
+        <div class="h-96 overflow-y-auto border rounded-lg p-2 mb-2 bg-slate-50" x-ref="chatbox">
+          <template x-for="msg in messages">
+            <div class="mb-2" :class="msg.role === 'user' ? 'text-right' : 'text-left'">
+              <div class="inline-block p-2 rounded-lg" :class="msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-slate-200'">
+                <p x-text="msg.content"></p>
+              </div>
+            </div>
+          </template>
+        </div>
+        <form @submit.prevent="sendMessage()" class="flex">
+          <input type="text" x-model="userInput" class="w-full border rounded-l-lg px-2 py-1" placeholder="Scrivi un messaggio..." />
+          <button type="submit" class="bg-slate-900 text-white rounded-r-lg px-4 py-2">Invia</button>
+        </form>
+      </section>
+
+      <!-- Col 4: Dispensa -->
       <section class="md:col-span-1 bg-white rounded-2xl shadow p-4">
         <h2 class="font-semibold mb-2">Dispensa</h2>
         <table class="w-full text-sm">

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import httpx
 import sqlite3
 from datetime import datetime, date
 from pathlib import Path
@@ -214,3 +215,24 @@ def api_summary(date_str: Optional[str] = None):
         }
     }
     return JSONResponse(response)
+
+
+@app.post("/chat")
+async def chat(user_message: str = Form(...)):
+    """Endpoint to handle chat messages."""
+    agent_service_url = "http://127.0.0.1:8001/chat"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                agent_service_url,
+                json={"message": user_message},
+                timeout=60.0,
+            )
+            response.raise_for_status()
+            agent_response = response.json()
+            return JSONResponse(content=agent_response)
+    except httpx.RequestError as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Error communicating with agent service: {e}"},
+        )
