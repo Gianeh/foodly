@@ -77,8 +77,27 @@ TOOLS_SCHEMA = [
 
 ADD_PAT = re.compile(r"aggiung[ei]|metti(?: .+)? in dispensa", re.I)
 CONS_PAT = re.compile(r"(ho )?(mangiato|consumato|usa|consuma)", re.I)
-GRAMS_PAT = re.compile(r"(\d+)(?:\s)?g\b", re.I)
-QTY_PAT = re.compile(r"(\d+)\s*(?:x|scatolette?|confezioni?)", re.I)
+# numeri seguiti da g o ml
+GRAMS_PAT = re.compile(r"(\d+)(?:\s)?(g|ml)\b", re.I)
+# es. "2 x", "2 vasetti", "2 bottiglie"
+QTY_PAT = re.compile(
+    r"(\d+)\s*(?:x|scatolette?|confezioni?|vasetti|lattine|bottiglie)", re.I
+)
+# es. "2 vasetti da 125 g"
+MULTI_PAT = re.compile(
+    r"(\d+)\s*(?:x|scatolette?|confezioni?|vasetti|lattine|bottiglie).*?da\s*(\d+)\s*(g|ml)",
+    re.I,
+)
+
+FOOD_KEYS = [
+    "tonno",
+    "gallette",
+    "prosciutto",
+    "riso",
+    "pollo",
+    "yogurt",
+    "latte",
+]
 
 
 def naive_parse(conn: sqlite3.Connection, text: str) -> List[ToolCall]:
@@ -91,18 +110,22 @@ def naive_parse(conn: sqlite3.Connection, text: str) -> List[ToolCall]:
 
     if ADD_PAT.search(text):
         grams = 0.0
-        m = GRAMS_PAT.search(text)
-        if m:
-            grams = float(m.group(1))
-        # Prova quantità per unità (es. 2 scatolette da 56 g)
-        mq = QTY_PAT.search(text)
-        if mq and grams == 0.0:
+        mq = MULTI_PAT.search(text)
+        if mq:
             qty = float(mq.group(1))
-            # deduci 56 g se parla di tonno
-            grams = qty * (56.0 if "tonno" in text.lower() else 100.0)
+            grams = qty * float(mq.group(2))
+        else:
+            m = GRAMS_PAT.search(text)
+            if m:
+                grams = float(m.group(1))
+            mq = QTY_PAT.search(text)
+            if mq and grams == 0.0:
+                qty = float(mq.group(1))
+                # deduci 56 g se parla di tonno
+                grams = qty * (56.0 if "tonno" in text.lower() else 100.0)
         # identifica food
         food = None
-        for key in ["tonno", "gallette", "prosciutto", "riso", "pollo", "yogurt"]:
+        for key in FOOD_KEYS:
             if key in text.lower():
                 food = key; break
         if food is None:
@@ -121,7 +144,7 @@ def naive_parse(conn: sqlite3.Connection, text: str) -> List[ToolCall]:
         if m:
             grams = float(m.group(1))
         food = None
-        for key in ["tonno", "gallette", "prosciutto", "riso", "pollo", "yogurt"]:
+        for key in FOOD_KEYS:
             if key in text.lower():
                 food = key; break
         fid = find_id(food) if food else None
